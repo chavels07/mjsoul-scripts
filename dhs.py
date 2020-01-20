@@ -31,7 +31,7 @@ class DHSMgr:
         await self.send("loginContestManager", print, data)
 
     async def run(self):
-        def on_message(msg):
+        async def on_message(msg):
             if msg[0] == ord(self.__class__._msgType['notify']):
                 wrapper = self._addrBook.Wrapper()
                 wrapper.ParseFromString(msg[3:])
@@ -44,12 +44,16 @@ class DHSMgr:
                     self._wrapper.ParseFromString(msg[3:])
                     res = self._msgPool[index][0]()
                     res.ParseFromString(self._wrapper.data)
-                    self._msgPool[index][1](res)
+                    if self._msgPool[index][1] is not None:
+                        if asyncio.iscoroutinefunction(self._msgPool[index][1]):
+                            await self._msgPool[index][1](protobuf_to_dict(res))
+                        else:
+                            self._msgPool[index][1](protobuf_to_dict(res))
                     self._msgPool.pop(index)
         async with websockets.connect(self._url) as ws:
             self._ws = ws
             while True:
-                on_message(await ws.recv())
+                await on_message(await ws.recv())
 
     async def send(self, path, callback, msg = None):
         try:
