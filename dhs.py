@@ -34,8 +34,16 @@ class DHSMgr:
         async def on_message(msg):
             if msg[0] == ord(self.__class__._msgType['notify']):
                 wrapper = self._addrBook.Wrapper()
-                wrapper.ParseFromString(msg[3:])
-                print(wrapper.data)
+                wrapper.ParseFromString(msg[1:])
+                notification = reflection.MakeClass(self._addrBook.DESCRIPTOR.message_types_by_name[wrapper.name[4:]])()
+                notification.ParseFromString(wrapper.data)
+                if wrapper.name[4:] in self._msgPool.keys():
+                    for cb in self._msgPool[wrapper.name[4:]]:
+                        if cb is not None:
+                            if asyncio.iscoroutinefunction(cb):
+                                await cb(protobuf_to_dict(notification))
+                            else:
+                                cb(protobuf_to_dict(notification))
             elif msg[0] == ord(self.__class__._msgType['res']):
                 # get index
                 index = msg[1] + msg[2] * 256
