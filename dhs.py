@@ -3,6 +3,7 @@ import importlib
 import hmac
 import asyncio
 import websockets
+import random
 from google.protobuf import reflection
 from protobuf_to_dict import protobuf_to_dict, dict_to_protobuf
 
@@ -38,8 +39,9 @@ class DHSMgr:
                 notification = reflection.MakeClass(self._addrBook.DESCRIPTOR.message_types_by_name[wrapper.name[4:]])()
                 notification.ParseFromString(wrapper.data)
                 if wrapper.name[4:] in self._msgPool.keys():
-                    for cb in self._msgPool[wrapper.name[4:]]:
-                        if cb is not None:
+                    for index in self._msgPool[wrapper.name[4:]]:
+                        if index != -1:
+                            cb = self._msgPool[wrapper.name[4:]][index]
                             if asyncio.iscoroutinefunction(cb):
                                 await cb(protobuf_to_dict(notification))
                             else:
@@ -69,15 +71,39 @@ class DHSMgr:
                 await asyncio.sleep(1)
             self._msgIndex %= 60007
             method = self._addrBook.DESCRIPTOR.services_by_name[self._serviceRoot].methods_by_name[path]
-            obj = reflection.MakeClass(method.input_type)()
-            self._msgPool[self._msgIndex] = (reflection.MakeClass(method.output_type), callback)
-            if msg is not None:
-                dict_to_protobuf(obj, msg)
-            self._wrapper.name = bytes('.' + method.full_name, 'utf-8')
-            self._wrapper.data = obj.SerializeToString()
-            req = self.__class__._msgType['req'] + bytes([self._msgIndex % 256, self._msgIndex // 256]) + self._wrapper.SerializeToString()
-            self._msgIndex += 1
-            await self._ws.send(req)
         except KeyError:
             print('API not exist')
             return
+        obj = reflection.MakeClass(method.input_type)()
+        self._msgPool[self._msgIndex] = (reflection.MakeClass(method.output_type), callback)
+        if msg is not None:
+            dict_to_protobuf(obj, msg)
+        self._wrapper.name = bytes('.' + method.full_name, 'utf-8')
+        self._wrapper.data = obj.SerializeToString()
+        req = self.__class__._msgType['req'] + bytes([self._msgIndex % 256, self._msgIndex // 256]) + self._wrapper.SerializeToString()
+        self._msgIndex += 1
+        await self._ws.send(req)
+
+    def bind(self, path : str, callback) -> int:
+        if path in self._msgPool.keys():
+            index = self._msgPool[path][-1] + 1
+            self._msgPool[path][-1] += 1
+            self._msgPool[path][index] = callback
+            return index
+        else:
+            self._msgPool[path] = {-1:1}
+            self._msgPool[path][0] = callback
+            return 0
+
+    def unbind(self, path: str, index) -> bool:
+        if index == -1:
+            return False
+        if path not in self._msgPool.keys():
+            return False
+        if index not in self._msgPool[path].keys():
+            return True
+        self._msgPool[path].pop(index)
+        return True
+
+
+

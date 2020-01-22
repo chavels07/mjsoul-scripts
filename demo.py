@@ -14,6 +14,7 @@ async def main_dhs():
     await login
     #login and start query
     await mgr.send('fetchRelatedContestList', print)
+    mgr.bind('NotifyContestMatchingPlayer', print)
     await loop #run_forever
 
 async def main_lobby():
@@ -23,5 +24,5 @@ async def main_lobby():
     await login
     #login and start query
     await loop #run_forever
-asyncio.run(main_lobby())
+asyncio.run(main_dhs())
 
