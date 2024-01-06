@@ -1,36 +1,29 @@
-from dhs import DHSMgr
-from mjsoul import MJSoul
 import asyncio
 import json
 
-with open('.\key.json', 'r') as f:
-    User = json.load(f)
-    f.close()
+from mjsoul import MJSoul, GameDataAnalysis
+from utils import *
 
-async def main_dhs():
-    mgr = DHSMgr()
-    loop = asyncio.create_task(mgr.run())
-    print('start')
-    login = asyncio.create_task(mgr.login(User['user'], User['passwd']))
-    await login
-    print('login success')
-    #login and start query
-    await mgr.send('fetchRelatedContestList', print)
-    mgr.bind('NotifyContestMatchingPlayer', print)
-    await loop #run_forever
 
-async def main_lobby():
+async def main_lobby(_user):
+    data_analysis = GameDataAnalysis()
+
     mgr = MJSoul()
     loop = asyncio.create_task(mgr.run())
-    login = asyncio.create_task(mgr.login(User['user'], User['passwd']))
+    login = asyncio.create_task(mgr.login(_user['user'], _user['passwd'], callback=None))
     await login
-    #login and start query
-    # await mgr.send('fetchGameRecordList', print, msg={'start': 1, 'count':30, 'type': 0})
-    # await mgr.send('fetchGameRecordList', print, msg={'start': 1, 'count':30, 'type': 1})
-    await mgr.send('fetchGameRecordList', print, msg={'start': 1, 'count':30, 'type': 2})
-    # await mgr.send('fetchGameRecordList', print, msg={'start': 1, 'count':30, 'type': 4})
-    
-    # mgr.bind('NotifyContestMatchingPlayer', print)
-    await loop #run_forever
-asyncio.run(main_lobby())
 
+    # login and start query
+    # await mgr.send('fetchGameRecordList', print, msg={'start': 0, 'count':30, 'type': 2})
+    await mgr.fetch_record(start=1, count=50, game_type=GAME_CATEGORY_RANK, callback=data_analysis.load_records)
+
+    # mgr.bind('NotifyContestMatchingPlayer', print)
+    await loop  # run_forever
+
+
+if __name__ == '__main__':
+    with open('.\key.json', 'r') as f:
+        user = json.load(f)
+        f.close()
+
+    asyncio.run(main_lobby(user))

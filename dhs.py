@@ -1,12 +1,13 @@
 # coding:utf-8
-import importlib
 import hmac
 import asyncio
 import websockets
-import random
+from typing import Optional, Callable
+
 from google.protobuf import reflection
 from google.protobuf.json_format import MessageToDict, ParseDict
-# from protobuf_to_dict import protobuf_to_dict, dict_to_protobuf
+
+import proto.liqi_pb2 as liqi
 
 class DHSMgr:
     _msgType = {'notify': b'\x01', 'req': b'\x02', 'res': b'\x03'}
@@ -15,8 +16,7 @@ class DHSMgr:
         self._msgPool = {} # msgIndex:(resType, callback func)
         self._msgIndex = 0
         self._msgQueue = []
-        self._addrBook = importlib.import_module('my_proto_pb2')
-        self._wrapper = self._addrBook.Wrapper()
+        self._wrapper = liqi.Wrapper()
         self._serviceRoot = 'CustomizedContestManagerApi'
         self._ws = None
     @staticmethod
@@ -36,9 +36,9 @@ class DHSMgr:
     async def run(self):
         async def on_message(msg):
             if msg[0] == ord(self.__class__._msgType['notify']):
-                wrapper = self._addrBook.Wrapper()
+                wrapper = liqi.Wrapper()
                 wrapper.ParseFromString(msg[1:])
-                notification = reflection.MakeClass(self._addrBook.DESCRIPTOR.message_types_by_name[wrapper.name[4:]])()
+                notification = reflection.MakeClass(liqi.DESCRIPTOR.message_types_by_name[wrapper.name[4:]])()
                 notification.ParseFromString(wrapper.data)
                 if wrapper.name[4:] in self._msgPool.keys():
                     for index in self._msgPool[wrapper.name[4:]]:
@@ -67,12 +67,12 @@ class DHSMgr:
             while True:
                 await on_message(await ws.recv())
 
-    async def send(self, path, callback, msg = None):
+    async def send(self, path, callback: Optional[Callable[[dict], None]] = None, msg: Optional[dict] = None):
         try:
             while self._ws is None:
                 await asyncio.sleep(1)
             self._msgIndex %= 60007
-            method = self._addrBook.DESCRIPTOR.services_by_name[self._serviceRoot].methods_by_name[path]
+            method = liqi.DESCRIPTOR.services_by_name[self._serviceRoot].methods_by_name[path]
         except KeyError:
             print('API not exist')
             return
@@ -80,14 +80,13 @@ class DHSMgr:
         self._msgPool[self._msgIndex] = (reflection.MakeClass(method.output_type), callback)
         if msg is not None:
             ParseDict(msg, obj)  # msg is actually dict info
-        print(obj)
         self._wrapper.name = bytes('.' + method.full_name, 'utf-8')
         self._wrapper.data = obj.SerializeToString()
         req = self.__class__._msgType['req'] + bytes([self._msgIndex % 256, self._msgIndex // 256]) + self._wrapper.SerializeToString()
         self._msgIndex += 1
         await self._ws.send(req)
 
-    def bind(self, path : str, callback) -> int:
+    def bind(self, path: str, callback) -> int:
         if path in self._msgPool.keys():
             index = self._msgPool[path][-1] + 1
             self._msgPool[path][-1] += 1
