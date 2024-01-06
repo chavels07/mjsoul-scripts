@@ -25,3 +25,6 @@ async def main_dhs():
 
 asyncio.run(main_dhs())
 ```
+
+### pb2生成
+[在线网站](https://www.grpcgenerator.com/)生成的pb2文件可使用，protoc则不行

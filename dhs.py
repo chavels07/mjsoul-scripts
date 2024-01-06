@@ -5,16 +5,17 @@ import asyncio
 import websockets
 import random
 from google.protobuf import reflection
-from protobuf_to_dict import protobuf_to_dict, dict_to_protobuf
+from google.protobuf.json_format import MessageToDict, ParseDict
+# from protobuf_to_dict import protobuf_to_dict, dict_to_protobuf
 
 class DHSMgr:
     _msgType = {'notify': b'\x01', 'req': b'\x02', 'res': b'\x03'}
     def __init__(self):
-        self._url = "wss://mj-srv-3.majsoul.com:4021"
+        self._url = 'wss://gateway-cdn.maj-soul.com/gateway'  # "wss://mj-srv-3.majsoul.com:4021"
         self._msgPool = {} # msgIndex:(resType, callback func)
         self._msgIndex = 0
         self._msgQueue = []
-        self._addrBook = importlib.import_module('dhs_pb2')
+        self._addrBook = importlib.import_module('my_proto_pb2')
         self._wrapper = self._addrBook.Wrapper()
         self._serviceRoot = 'CustomizedContestManagerApi'
         self._ws = None
@@ -30,6 +31,7 @@ class DHSMgr:
             'type': 0
         }
         await self.send("loginContestManager", print, data)
+        print('before sending')
 
     async def run(self):
         async def on_message(msg):
@@ -43,9 +45,9 @@ class DHSMgr:
                         if index != -1:
                             cb = self._msgPool[wrapper.name[4:]][index]
                             if asyncio.iscoroutinefunction(cb):
-                                await cb(protobuf_to_dict(notification))
+                                await cb(MessageToDict(notification))
                             else:
-                                cb(protobuf_to_dict(notification))
+                                cb(MessageToDict(notification))
             elif msg[0] == ord(self.__class__._msgType['res']):
                 # get index
                 index = msg[1] + msg[2] * 256
@@ -56,9 +58,9 @@ class DHSMgr:
                     res.ParseFromString(self._wrapper.data)
                     if self._msgPool[index][1] is not None:
                         if asyncio.iscoroutinefunction(self._msgPool[index][1]):
-                            await self._msgPool[index][1](protobuf_to_dict(res))
+                            await self._msgPool[index][1](MessageToDict(res))
                         else:
-                            self._msgPool[index][1](protobuf_to_dict(res))
+                            self._msgPool[index][1](MessageToDict(res))
                     self._msgPool.pop(index)
         async with websockets.connect(self._url) as ws:
             self._ws = ws
@@ -77,7 +79,8 @@ class DHSMgr:
         obj = reflection.MakeClass(method.input_type)()
         self._msgPool[self._msgIndex] = (reflection.MakeClass(method.output_type), callback)
         if msg is not None:
-            dict_to_protobuf(obj, msg)
+            ParseDict(msg, obj)  # msg is actually dict info
+        print(obj)
         self._wrapper.name = bytes('.' + method.full_name, 'utf-8')
         self._wrapper.data = obj.SerializeToString()
         req = self.__class__._msgType['req'] + bytes([self._msgIndex % 256, self._msgIndex // 256]) + self._wrapper.SerializeToString()
