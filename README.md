@@ -1,10 +1,9 @@
 # mjsoul-py
-这是雀魂游戏的一个工具,能使用websocket调用官方提供的API,支持游戏前端以及后台比赛管理系统. 本程序是[mjsoul](https://github.com/takayama-lily/mjsoul)的Python版本
+这是雀魂游戏的一个工具,能使用websocket调用官方提供的API,用于牌谱数据分析统计。本程序Fork于[mjsoul](https://github.com/lostkevin/mjsoul-py)
 
 ## Dependency
 
 + protobuf
-+ protobuf-to-dict
 + websockets
 + asyncio
 
@@ -26,5 +25,8 @@ async def main_dhs():
 asyncio.run(main_dhs())
 ```
 
-### pb2生成
-[在线网站](https://www.grpcgenerator.com/)生成的pb2文件可使用，protoc则不行
+## pb2生成
+使用liqi.proto通过[在线网站](https://www.grpcgenerator.com/)生成的pb2文件可使用
+
+通过protoc生成的pb数据结构文件无法运行
+
