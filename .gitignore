@@ -1,3 +1,6 @@
 __pycache__/
 key.json
 tmp/
+
+.vscode/
+.idea/
