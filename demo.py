@@ -6,7 +6,7 @@ from utils import *
 
 
 async def main_lobby(_user):
-    data_analysis = GameDataAnalysis()
+    data_analysis = GameDataAnalysis(_user['name'])
 
     mgr = MJSoul()
     loop = asyncio.create_task(mgr.run())
@@ -26,4 +26,5 @@ if __name__ == '__main__':
         user = json.load(f)
         f.close()
 
+    user['name'] = ''  # name of you game account
     asyncio.run(main_lobby(user))

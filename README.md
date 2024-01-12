@@ -30,3 +30,5 @@ asyncio.run(main_dhs())
 
 通过protoc生成的pb数据结构文件无法运行
 
+## TODO
+* 从雀魂主网页获取当前版本信息，如发现无法获取数据，运行**base.py**获取雀魂最新版本，并替换**mjsoul.py**中的版本信息

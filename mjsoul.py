@@ -1,7 +1,7 @@
 import random
 import pprint
 from dataclasses import dataclass
-from typing import Callable
+from typing import Callable, Generator
 
 from dhs import DHSMgr
 from utils import *
@@ -11,7 +11,7 @@ class MJSoul(DHSMgr):
 
     def __init__(self):
         super().__init__()
-        self.version = '0.11.9.w'
+        self.version = '0.11.11.w'  # game version
         # expired websocket url
         # wss://mj-srv-7.majsoul.com:4131/
         # wss://mj-srv-7.majsoul.com:4130
@@ -47,11 +47,11 @@ class MJSoul(DHSMgr):
             'gen_access_token': False,
             'type': 0,
             'currency_platforms': [],
-            'client_version_string': 'web-0.11.9',
+            'client_version_string': 'web-0.11.11',  # version
             'tag': 'cn'
         }
         await self.send('login', callback, msg)
-        print('login-ing')
+        print('login...')
 
     async def fetch_record(self, start: int, count: int, game_type: int, callback: Callable[[dict], None] = print):
         """
@@ -69,13 +69,15 @@ class MJSoul(DHSMgr):
                                                           'count': count,
                                                           'type': game_type})
 
-
 class GameDataAnalysis:
-    def __init__(self):
+    def __init__(self, user_name: str):
         self.game_records: dict[int, GameRecord] = {}  # sorted by timestamp in descending order
+        self.user_name = user_name
+        self.user_records: list[tuple[Player, PlayerResult]] = []
+
 
     def load_records(self, record_data: dict):
-        record_data = record_data['recordList']
+        record_data = record_data.get('recordList', [])
         for match_data in record_data:
             players = {}
             for player_data in match_data['accounts']:
@@ -110,8 +112,23 @@ class GameDataAnalysis:
             self.game_records[game_record.start_timestamp] = game_record
         pprint.pprint(self.game_records)
 
+    def _character_info_collect(self):
+        for record in self.game_records.values():
+            matching_player = self._player_name_matching(record.players)
+            result = record.game_result.player_results[matching_player.seat]
+            yield matching_player, result
+
+    def _player_name_matching(self, players: dict[int, 'Player']) -> 'Player':
+        for player in players.values():
+            if player.name == self.user_name:
+                return player
+        raise ValueError(f'Cannot find player {self.user_name} '
+                         f'among game players {[player.name for player in players.values()]}')
+
     def analysis_character_relation(self):
-        print('MizuSakana')
+        for player, result in self._character_info_collect():
+            pass
+        print('MizuSakana')  # TODO
 
 
 @dataclass
@@ -119,7 +136,7 @@ class GameRecord:
     uuid: str
     category: int
     mode: int
-    players: dict[int, 'Player']
+    players: dict[int, 'Player']  # seat: player
     game_result: 'GameResult'
     start_timestamp: int
 
@@ -142,7 +159,7 @@ class Character:
 
 @dataclass
 class GameResult:
-    player_results: dict[int, 'PlayerResult']
+    player_results: dict[int, 'PlayerResult']  # seat, player result
 
 
 @dataclass
