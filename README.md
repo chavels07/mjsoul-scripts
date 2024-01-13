@@ -25,6 +25,15 @@ async def main_dhs():
 asyncio.run(main_dhs())
 ```
 
+运行前创建key.json文件记录用户账号、密码和昵称信息，内容如下
+```json
+{
+    "user": "xxxxxx@xxx.com",
+    "passwd": "xxx",
+    "name": "一姬"
+}
+```
+
 ## pb2生成
 使用liqi.proto通过[在线网站](https://www.grpcgenerator.com/)生成的pb2文件可使用
 
