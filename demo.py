@@ -26,5 +26,4 @@ if __name__ == '__main__':
         user = json.load(f)
         f.close()
 
-    user['name'] = ''  # name of you game account
     asyncio.run(main_lobby(user))
